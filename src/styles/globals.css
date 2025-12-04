@@ -1,0 +1,54 @@
+/**
+ * Author: hoangedu773
+ * GitHub: https://github.com/hoangedu773
+ * Date: 2025-11-28
+ * Description: Global styles with Tailwind CSS and Glassmorphism effects
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-gradient-to-br from-purple-700 via-blue-600 to-purple-900;
+        @apply min-h-screen font-sans text-white antialiased;
+        user-select: none;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+@layer utilities {
+
+    /* Glassmorphism Effect */
+    .glass {
+        @apply bg-white bg-opacity-15 backdrop-blur-md border border-white border-opacity-20 shadow-lg;
+    }
+
+    .glass-dark {
+        @apply bg-gray-900 bg-opacity-90 backdrop-blur-md border border-gray-700 border-opacity-50 shadow-xl;
+    }
+
+    /* Vibrant Glass Effects for Game Boxes */
+    .glass-quan {
+        @apply bg-gradient-to-br from-orange-500 to-orange-600 bg-opacity-80 backdrop-blur-sm border-2 border-orange-300 border-opacity-40 shadow-2xl;
+    }
+
+    .glass-player-x {
+        @apply bg-cyan-500 bg-opacity-20 backdrop-blur-md border-2 border-cyan-300 border-opacity-30 shadow-lg;
+    }
+
+    .glass-player-o {
+        @apply bg-pink-500 bg-opacity-20 backdrop-blur-md border-2 border-pink-300 border-opacity-30 shadow-lg;
+    }
+
+    /* Text Glow Effects */
+    .text-glow {
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    }
+
+    .text-glow-accent {
+        text-shadow: 0 0 15px rgba(251, 191, 36, 0.8);
+    }
+}
