@@ -15,12 +15,16 @@ import {
     BOARD_SIZE,
     INITIAL_STONE_SMALL,
     INITIAL_STONE_BIG,
+    BIG_STONE_VALUE,
     PLAYER_X,
     PLAYER_O,
     PLAYER_X_BOXES,
     PLAYER_O_BOXES,
     PLAYER_X_SCORE_INDEX,
     PLAYER_O_SCORE_INDEX,
+    QUAN_O_INDEX,
+    QUAN_X_INDEX,
+    QUAN_BOXES,
     SOW_ANIMATION_DELAY,
 } from '../../utils/constants';
 import {
@@ -149,23 +153,19 @@ export default function OnlineGameScreen({ onlineGameData, onBackToMenu, current
         setSelectedStartIndex(-1);
     };
 
-    // Execute sowing
+    // Execute sowing - OFFICIAL RULES
     const executeSow = async (startIndex, direction, isMyMove) => {
         setIsSowing(true);
 
         const newBoard = [...board];
+        const newQuanStones = [...quanStones];
         let stonesToSow = newBoard[startIndex];
         newBoard[startIndex] = 0;
         let currentIndex = startIndex;
 
-        // Skip opponent's score box
-        const skipIndex = isMyMove ? opponentScoreIndex : myScoreIndex;
-
-        // Sowing phase
+        // PHASE 1: Sow ALL stones (into ALL boxes including Quan)
         while (stonesToSow > 0) {
             currentIndex = getNextIndex(currentIndex, direction);
-            if (currentIndex === skipIndex) continue;
-
             newBoard[currentIndex]++;
             stonesToSow--;
 
@@ -175,25 +175,97 @@ export default function OnlineGameScreen({ onlineGameData, onBackToMenu, current
             setAnimatingBoxes([]);
         }
 
-        // Check for captures (simplified)
-        let nextIndex = getNextIndex(currentIndex, direction);
-        while (newBoard[nextIndex] === 0 && nextIndex !== PLAYER_X_SCORE_INDEX && nextIndex !== PLAYER_O_SCORE_INDEX) {
-            const captureIndex = getNextIndex(nextIndex, direction);
-            if (captureIndex === PLAYER_X_SCORE_INDEX || captureIndex === PLAYER_O_SCORE_INDEX) break;
-            if (newBoard[captureIndex] === 0) break;
+        // PHASE 2: Check next box after sowing
+        let continueLoop = true;
+        while (continueLoop) {
+            let nextIndex = getNextIndex(currentIndex, direction);
 
-            // Capture stones
-            const captured = newBoard[captureIndex];
-            newBoard[captureIndex] = 0;
-            newBoard[isMyMove ? myScoreIndex : opponentScoreIndex] += captured;
+            // RULE 1: If next is Quan → STOP (turn ends)
+            const isNextQuan = nextIndex === QUAN_O_INDEX || nextIndex === QUAN_X_INDEX;
+            if (isNextQuan) {
+                continueLoop = false;
+                break;
+            }
 
-            setBoard([...newBoard]);
-            await new Promise(resolve => setTimeout(resolve, SOW_ANIMATION_DELAY));
+            // RULE 2: If next has stones → Pick up and continue sowing
+            if (newBoard[nextIndex] > 0) {
+                stonesToSow = newBoard[nextIndex];
+                newBoard[nextIndex] = 0;
+                currentIndex = nextIndex;
 
-            nextIndex = getNextIndex(captureIndex, direction);
+                setAnimatingBoxes([nextIndex]);
+                setBoard([...newBoard]);
+                await new Promise(resolve => setTimeout(resolve, SOW_ANIMATION_DELAY));
+                setAnimatingBoxes([]);
+
+                // Continue sowing these stones
+                while (stonesToSow > 0) {
+                    currentIndex = getNextIndex(currentIndex, direction);
+                    newBoard[currentIndex]++;
+                    stonesToSow--;
+
+                    setAnimatingBoxes([currentIndex]);
+                    setBoard([...newBoard]);
+                    await new Promise(resolve => setTimeout(resolve, SOW_ANIMATION_DELAY));
+                    setAnimatingBoxes([]);
+                }
+                continue; // Loop back to check next box again
+            }
+
+            // RULE 3: If next is empty → Check for capture
+            if (newBoard[nextIndex] === 0) {
+                let captureIndex = getNextIndex(nextIndex, direction);
+
+                // Capture loop - capture ANY box with stones (including Quan)
+                while (true) {
+                    let hasStones = newBoard[captureIndex] > 0;
+                    let hasQuanStone = QUAN_BOXES.includes(captureIndex) &&
+                        newQuanStones[captureIndex === QUAN_O_INDEX ? 0 : 1] > 0;
+
+                    if (!hasStones && !hasQuanStone) break;
+
+                    let captureStones = newBoard[captureIndex];
+
+                    // Add big stone value if capturing Quan
+                    if (captureIndex === QUAN_O_INDEX && newQuanStones[0] > 0) {
+                        captureStones += BIG_STONE_VALUE;
+                        newQuanStones[0] = 0;
+                    } else if (captureIndex === QUAN_X_INDEX && newQuanStones[1] > 0) {
+                        captureStones += BIG_STONE_VALUE;
+                        newQuanStones[1] = 0;
+                    }
+
+                    if (captureStones === 0) break;
+
+                    // Add to my score
+                    newBoard[isMyMove ? myScoreIndex : opponentScoreIndex] += captureStones;
+                    newBoard[captureIndex] = 0;
+
+                    setBoard([...newBoard]);
+                    await new Promise(resolve => setTimeout(resolve, SOW_ANIMATION_DELAY));
+
+                    // Check for continuous capture
+                    let nextEmptyCheck = getNextIndex(captureIndex, direction);
+                    if (newBoard[nextEmptyCheck] > 0) break; // Not empty, stop
+
+                    let nextCaptureCheck = getNextIndex(nextEmptyCheck, direction);
+                    let nextHasStones = newBoard[nextCaptureCheck] > 0;
+                    let nextHasQuan = QUAN_BOXES.includes(nextCaptureCheck) &&
+                        newQuanStones[nextCaptureCheck === QUAN_O_INDEX ? 0 : 1] > 0;
+
+                    if (nextHasStones || nextHasQuan) {
+                        captureIndex = nextCaptureCheck;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            continueLoop = false;
         }
 
         setBoard(newBoard);
+        setQuanStones(newQuanStones);
 
         // Sync state if my move
         if (isMyMove) {
@@ -206,15 +278,18 @@ export default function OnlineGameScreen({ onlineGameData, onBackToMenu, current
             setIsMyTurn(true);
         }
 
-        // Check end game
-        if (checkEndGame(newBoard)) {
+        // Check end game - need quanStones, not board
+        if (checkEndGame(quanStones)) {
             setIsGameOver(true);
-            const w = getWinner(calculateScore(newBoard, quanStones, PLAYER_X),
-                calculateScore(newBoard, quanStones, PLAYER_O));
-            setWinner(w === 0 ? null : w === PLAYER_X ? (yourSide === 'bottom' ? 'Bạn' : opponent.name) : (yourSide === 'top' ? 'Bạn' : opponent.name));
+            const scores = {
+                X: newBoard[PLAYER_X_SCORE_INDEX],
+                O: newBoard[PLAYER_O_SCORE_INDEX]
+            };
+            const w = getWinner(scores);
+            setWinner(w === 'draw' ? null : (w === PLAYER_X ? (yourSide === 'bottom' ? 'Bạn' : opponent.name) : (yourSide === 'top' ? 'Bạn' : opponent.name)));
 
             if (isMyMove) {
-                endGame(gameId, w, { player1: myScore, player2: opponentScore });
+                endGame(gameId, w, scores);
             }
         }
 

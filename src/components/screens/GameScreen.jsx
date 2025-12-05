@@ -143,8 +143,9 @@ export default function GameScreen({ gameMode, aiDifficulty = 'medium', onBackTo
                 setStatusMessage(`🔄 Hết quân! Tự động rải 5 dân (-5 điểm)`);
                 return true;
             } else {
-                // Not enough points - skip turn
-                setStatusMessage(`❌ Hết quân và không đủ ${REDISTRIBUTION_COST} điểm! Bỏ lượt.`);
+                // Not enough points - GAME OVER (player loses)
+                setStatusMessage(`❌ Hết quân và không đủ ${REDISTRIBUTION_COST} điểm! Bạn thua!`);
+                endGame(board, scores); // End game immediately
                 return false;
             }
         }
