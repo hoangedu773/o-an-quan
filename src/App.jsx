@@ -25,6 +25,7 @@ import './styles/globals.css';
 function App() {
     const [currentScreen, setCurrentScreen] = useState('menu');
     const [gameMode, setGameMode] = useState(null); // 'PvP', 'PvA', 'AvA', 'online'
+    const [aiDifficulty, setAiDifficulty] = useState('medium'); // 'easy', 'medium', 'hard'
     const [currentPlayer, setCurrentPlayerState] = useState(null);
     const [authUser, setAuthUser] = useState(null);
 
@@ -44,8 +45,9 @@ function App() {
         setAuthUser(user);
     }, []);
 
-    const handleGameModeSelect = (mode) => {
+    const handleGameModeSelect = (mode, difficulty = 'medium') => {
         setGameMode(mode);
+        setAiDifficulty(difficulty);
 
         // Online multiplayer mode
         if (mode === 'online') {
@@ -187,6 +189,7 @@ function App() {
                 {currentScreen === 'game' && gameMode && gameMode !== 'online' && (
                     <GameScreen
                         gameMode={gameMode}
+                        aiDifficulty={aiDifficulty}
                         onBackToMenu={handleBackToMenu}
                         currentPlayer={currentPlayer}
                     />

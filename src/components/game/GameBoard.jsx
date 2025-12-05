@@ -1,8 +1,8 @@
 /**
  * Author: hoangedu773
  * GitHub: https://github.com/hoangedu773
- * Date: 2025-11-28
- * Description: Main game board component
+ * Date: 2025-12-05
+ * Description: Main game board component with hand animation
  */
 
 import { PLAYER_X_BOXES, PLAYER_O_BOXES } from '../../utils/constants';
@@ -18,6 +18,8 @@ export default function GameBoard({
     isSowing,
     selectedStartIndex,
     animatingBoxes,
+    capturingBox = -1,
+    handPosition = -1,
     gameMode
 }) {
     const isBoxActive = (index) => {
@@ -39,13 +41,14 @@ export default function GameBoard({
     };
 
     return (
-        <div className="glass border-4 border-gray-900 border-opacity-50 rounded-2xl p-4 flex flex-col md:flex-row items-center gap-4">
+        <div className="relative glass border-4 border-gray-900 border-opacity-50 rounded-2xl p-4 flex flex-col md:flex-row items-center gap-4">
             {/* Quan O (Left) */}
             <QuanBox
                 player="O"
                 stones={board[0]}
                 quanStone={quanStones[0]}
                 index={0}
+                hasHand={handPosition === 0}
             />
 
             {/* Dan Boxes Container */}
@@ -61,6 +64,8 @@ export default function GameBoard({
                             onClick={() => onBoxClick(index)}
                             player={getPlayerForBox(index)}
                             isAnimating={animatingBoxes.includes(index)}
+                            isCapturing={capturingBox === index}
+                            hasHand={handPosition === index}
                         />
                     ))}
                 </div>
@@ -76,6 +81,8 @@ export default function GameBoard({
                             onClick={() => onBoxClick(index)}
                             player={getPlayerForBox(index)}
                             isAnimating={animatingBoxes.includes(index)}
+                            isCapturing={capturingBox === index}
+                            hasHand={handPosition === index}
                         />
                     ))}
                 </div>
@@ -87,6 +94,7 @@ export default function GameBoard({
                 stones={board[6]}
                 quanStone={quanStones[1]}
                 index={6}
+                hasHand={handPosition === 6}
             />
         </div>
     );

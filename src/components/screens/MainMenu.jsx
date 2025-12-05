@@ -1,8 +1,8 @@
 /**
  * Author: hoangedu773
  * GitHub: https://github.com/hoangedu773
- * Date: 2025-12-04
- * Description: Main Menu screen component with leaderboard and match history
+ * Date: 2025-12-05
+ * Description: Main Menu with AI difficulty selection
  */
 
 import { useState } from 'react';
@@ -10,6 +10,17 @@ import Button from '../ui/Button';
 
 export default function MainMenu({ onGameModeSelect, onShowInstructions, onShowLeaderboard, onShowMatchHistory }) {
     const [showModes, setShowModes] = useState(false);
+    const [showDifficulty, setShowDifficulty] = useState(false);
+
+    const handleAIMode = () => {
+        setShowDifficulty(true);
+    };
+
+    const handleDifficultySelect = (difficulty) => {
+        onGameModeSelect('PvA', difficulty);
+        setShowDifficulty(false);
+        setShowModes(false);
+    };
 
     return (
         <div className="glass w-full max-w-2xl mx-auto p-8 md:p-12 rounded-2xl shadow-2xl">
@@ -29,7 +40,7 @@ export default function MainMenu({ onGameModeSelect, onShowInstructions, onShowL
             )}
 
             {/* Game Modes */}
-            {showModes && (
+            {showModes && !showDifficulty && (
                 <div className="bg-blue-500 bg-opacity-20 border-2 border-blue-300 border-opacity-40 rounded-xl p-6 mb-4 backdrop-blur-sm">
                     <p className="font-semibold text-blue-100 mb-4 text-center">
                         Chọn Chế Độ Chơi:
@@ -56,7 +67,7 @@ export default function MainMenu({ onGameModeSelect, onShowInstructions, onShowL
                         <Button
                             variant="primary"
                             className="w-full bg-yellow-500 hover:bg-yellow-600"
-                            onClick={() => onGameModeSelect('PvA')}
+                            onClick={handleAIMode}
                         >
                             🤖 Người vs Máy (AI Minimax)
                         </Button>
@@ -66,6 +77,48 @@ export default function MainMenu({ onGameModeSelect, onShowInstructions, onShowL
                             onClick={() => onGameModeSelect('AvA')}
                         >
                             🎬 Máy vs Máy (AI Demo)
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Difficulty Selection */}
+            {showDifficulty && (
+                <div className="bg-yellow-500 bg-opacity-20 border-2 border-yellow-300 border-opacity-40 rounded-xl p-6 mb-4 backdrop-blur-sm">
+                    <p className="font-semibold text-yellow-100 mb-4 text-center">
+                        🤖 Chọn Độ Khó AI:
+                    </p>
+                    <div className="space-y-3">
+                        <Button
+                            variant="success"
+                            className="w-full"
+                            onClick={() => handleDifficultySelect('easy')}
+                        >
+                            😊 DỄ - AI Ngốc (Depth 2)
+                        </Button>
+                        <Button
+                            variant="primary"
+                            className="w-full bg-orange-500 hover:bg-orange-600"
+                            onClick={() => handleDifficultySelect('medium')}
+                        >
+                            🧐 TRUNG BÌNH - AI Khôn (Depth 4)
+                        </Button>
+                        <Button
+                            variant="danger"
+                            className="w-full"
+                            onClick={() => handleDifficultySelect('hard')}
+                        >
+                            💀 KHÓ - AI Thiên Tài (Depth 6)
+                        </Button>
+                        <div className="border-t border-white border-opacity-20 my-2"></div>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            onClick={() => {
+                                setShowDifficulty(false);
+                            }}
+                        >
+                            ← Quay lại
                         </Button>
                     </div>
                 </div>
@@ -83,26 +136,20 @@ export default function MainMenu({ onGameModeSelect, onShowInstructions, onShowL
             {/* Match History Button */}
             <Button
                 variant="primary"
-                className="w-full mb-4 bg-purple-600 hover:bg-purple-700"
+                className="w-full mb-4 bg-indigo-500 hover:bg-indigo-600"
                 onClick={onShowMatchHistory}
             >
                 📜 LỊCH SỬ ĐẤU
             </Button>
 
-            {/* Help Button */}
+            {/* Instructions Button */}
             <Button
                 variant="secondary"
-                className="w-full mb-4"
+                className="w-full"
                 onClick={onShowInstructions}
             >
-                📖 TRỢ GIÚP (Hướng dẫn cách chơi)
+                📖 HƯỚNG DẪN
             </Button>
-
-            {/* Info */}
-            <div className="text-center text-sm text-gray-300 mt-6">
-                <p>Trò chơi dân gian Việt Nam</p>
-                <p className="mt-1">💻 Demo thuật toán AI Minimax</p>
-            </div>
         </div>
     );
 }

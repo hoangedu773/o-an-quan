@@ -1,7 +1,7 @@
 /**
  * Author: hoangedu773
  * GitHub: https://github.com/hoangedu773
- * Date: 2025-11-28
+ * Date: 2025-12-05
  * Description: Core game logic functions for O An Quan
  */
 
@@ -12,27 +12,40 @@ import {
     PLAYER_O_BOXES,
     PLAYER_X_SCORE_INDEX,
     PLAYER_O_SCORE_INDEX,
-    MINOR_BOX_COUNT,
     BIG_STONE_VALUE,
     PLAYER_X,
     PLAYER_O,
+    QUAN_O_INDEX,
+    QUAN_X_INDEX,
 } from './constants';
 
 /**
- * Get next index with wrapping
+ * Board visual layout:
+ * 
+ * [Quan Left=0]  [5][4][3][2][1]  [Quan Right=6]
+ *                [7][8][9][10][11]
+ * 
+ * Counter-clockwise (⬅️ LEFT): 7 → 0 → 5 → 4 → 3 → 2 → 1 → 6 → 11 → 10 → 9 → 8 → 7
+ * Clockwise (➡️ RIGHT): 7 → 8 → 9 → 10 → 11 → 6 → 1 → 2 → 3 → 4 → 5 → 0 → 7
+ */
+const COUNTER_CLOCKWISE = [7, 0, 5, 4, 3, 2, 1, 6, 11, 10, 9, 8];
+const CLOCKWISE = [7, 8, 9, 10, 11, 6, 1, 2, 3, 4, 5, 0];
+
+/**
+ * Get next index following circular board order
+ * direction: -1 = counter-clockwise (left), 1 = clockwise (right)
  */
 export function getNextIndex(currentIndex, direction) {
-    let nextIndex = currentIndex + direction;
-    if (nextIndex < 0) {
-        nextIndex = BOARD_SIZE - 1;
-    } else if (nextIndex >= BOARD_SIZE) {
-        nextIndex = 0;
-    }
-    return nextIndex;
+    const order = direction === -1 ? COUNTER_CLOCKWISE : CLOCKWISE;
+    const currentPos = order.indexOf(currentIndex);
+    if (currentPos === -1) return currentIndex;
+
+    const nextPos = (currentPos + 1) % order.length;
+    return order[nextPos];
 }
 
 /**
- * Check if player needs to "Gieo" (sow from score)
+ * Check if player needs to redistribute
  */
 export function checkNeedSow(board, currentPlayer) {
     const playerBoxes = currentPlayer === PLAYER_X ? PLAYER_X_BOXES : PLAYER_O_BOXES;
@@ -40,23 +53,22 @@ export function checkNeedSow(board, currentPlayer) {
 }
 
 /**
- * Check if game has ended (both Quan stones are gone)
+ * Check if game has ended
  */
 export function checkEndGame(quanStones) {
     return quanStones[0] === 0 && quanStones[1] === 0;
 }
 
 /**
- * Calculate total score for a player
+ * Calculate score
  */
 export function calculateScore(board, quanStones, player) {
     const scoreIndex = player === PLAYER_X ? PLAYER_X_SCORE_INDEX : PLAYER_O_SCORE_INDEX;
-    const quanIndex = player === PLAYER_X ? 1 : 0;
-    return board[scoreIndex] + (quanStones[quanIndex] * BIG_STONE_VALUE);
+    return board[scoreIndex];
 }
 
 /**
- * Get valid moves for current player
+ * Get valid moves
  */
 export function getValidMoves(board, currentPlayer) {
     const playerBoxes = currentPlayer === PLAYER_X ? PLAYER_X_BOXES : PLAYER_O_BOXES;
@@ -64,7 +76,7 @@ export function getValidMoves(board, currentPlayer) {
 }
 
 /**
- * Deep clone game state
+ * Clone game state
  */
 export function cloneGameState(board, quanStones) {
     return {
@@ -74,127 +86,117 @@ export function cloneGameState(board, quanStones) {
 }
 
 /**
- * Simulate a complete move (sow and capture) and return new state
- * This is used for AI calculation
+ * Check if cell has stones
+ */
+function cellHasStones(board, quanStones, index) {
+    if (QUAN_BOXES.includes(index)) {
+        const quanIdx = index === QUAN_O_INDEX ? 0 : 1;
+        return board[index] > 0 || quanStones[quanIdx] > 0;
+    }
+    return board[index] > 0;
+}
+
+/**
+ * Simulate a move
  */
 export function simulateMove(board, quanStones, startIndex, direction, currentPlayer) {
-    const newState = cloneGameState(board, quanStones);
-    const newBoard = newState.board;
-    const newQuanStones = newState.quanStones;
+    const newBoard = [...board];
+    const newQuanStones = [...quanStones];
 
-    const opponentScoreIndex = currentPlayer === PLAYER_X ? PLAYER_O_SCORE_INDEX : PLAYER_X_SCORE_INDEX;
     const playerScoreIndex = currentPlayer === PLAYER_X ? PLAYER_X_SCORE_INDEX : PLAYER_O_SCORE_INDEX;
 
     let stonesToSow = newBoard[startIndex];
     newBoard[startIndex] = 0;
     let currentIndex = startIndex;
 
-    // Sowing phase
-    while (stonesToSow > 0) {
-        currentIndex = getNextIndex(currentIndex, direction);
+    while (true) {
+        // Sow
+        while (stonesToSow > 0) {
+            currentIndex = getNextIndex(currentIndex, direction);
+            newBoard[currentIndex]++;
+            stonesToSow--;
+        }
 
-        // Skip opponent's Quan box
-        if (currentIndex === opponentScoreIndex) {
+        // Check next
+        let nextIndex = getNextIndex(currentIndex, direction);
+
+        // Stop at Quan
+        if (QUAN_BOXES.includes(nextIndex)) {
+            break;
+        }
+
+        // Pick up if has stones
+        if (newBoard[nextIndex] > 0) {
+            stonesToSow = newBoard[nextIndex];
+            newBoard[nextIndex] = 0;
+            currentIndex = nextIndex;
             continue;
         }
 
-        newBoard[currentIndex]++;
-        stonesToSow--;
-    }
+        // Capture if next is empty
+        if (newBoard[nextIndex] === 0) {
+            let captureIndex = getNextIndex(nextIndex, direction);
 
-    // Capture phase
-    let lastIndex = currentIndex;
-
-    while (true) {
-        // If landed on non-empty box (not a Quan box), scoop and continue
-        if (!QUAN_BOXES.includes(lastIndex) && newBoard[lastIndex] > 1) {
-            stonesToSow = newBoard[lastIndex];
-            newBoard[lastIndex] = 0;
-
-            // Continue sowing
-            currentIndex = lastIndex;
-            while (stonesToSow > 0) {
-                currentIndex = getNextIndex(currentIndex, direction);
-
-                if (currentIndex === opponentScoreIndex) {
-                    continue;
-                }
-
-                newBoard[currentIndex]++;
-                stonesToSow--;
-            }
-
-            lastIndex = currentIndex;
-        }
-        // If landed on empty box, try to capture
-        else if (!QUAN_BOXES.includes(lastIndex) && newBoard[lastIndex] === 1) {
-            let captureIndex = getNextIndex(lastIndex, direction);
-
-            // Capture from next box and the one after
-            while (newBoard[captureIndex] > 0 || (QUAN_BOXES.includes(captureIndex) && newQuanStones[QUAN_BOXES.indexOf(captureIndex)] > 0)) {
-                // Capture regular stones
+            while (cellHasStones(newBoard, newQuanStones, captureIndex)) {
                 newBoard[playerScoreIndex] += newBoard[captureIndex];
                 newBoard[captureIndex] = 0;
 
-                // Capture Quan stone if present
                 if (QUAN_BOXES.includes(captureIndex)) {
-                    const quanIdx = QUAN_BOXES.indexOf(captureIndex);
+                    const quanIdx = captureIndex === QUAN_O_INDEX ? 0 : 1;
                     if (newQuanStones[quanIdx] > 0) {
                         newBoard[playerScoreIndex] += BIG_STONE_VALUE;
                         newQuanStones[quanIdx] = 0;
                     }
                 }
 
-                // Move to next box for potential second capture
-                const nextCaptureIndex = getNextIndex(captureIndex, direction);
-                if (newBoard[nextCaptureIndex] === 0 && (!QUAN_BOXES.includes(nextCaptureIndex) || newQuanStones[QUAN_BOXES.indexOf(nextCaptureIndex)] === 0)) {
+                let nextEmptyCheck = getNextIndex(captureIndex, direction);
+                if (newBoard[nextEmptyCheck] > 0 || QUAN_BOXES.includes(nextEmptyCheck)) break;
+
+                let nextCaptureCheck = getNextIndex(nextEmptyCheck, direction);
+                if (cellHasStones(newBoard, newQuanStones, nextCaptureCheck)) {
+                    captureIndex = nextCaptureCheck;
+                } else {
                     break;
                 }
-                captureIndex = nextCaptureIndex;
             }
+        }
 
-            break;
-        }
-        // If landed on Quan with only big stone
-        else if (QUAN_BOXES.includes(lastIndex) && newBoard[lastIndex] === 0) {
-            break;
-        }
-        // Otherwise break
-        else {
-            break;
-        }
+        break;
     }
 
     return { board: newBoard, quanStones: newQuanStones };
 }
 
 /**
- * Get winner at end of game
+ * Calculate final state
  */
-export function getWinner(board, quanStones) {
-    // Award remaining stones to their owner ("Chan" rule)
+export function calculateFinalState(board, quanStones) {
     const finalBoard = [...board];
 
-    // Player X gets remaining stones in their boxes
     let playerXRemaining = 0;
-    PLAYER_X_BOXES.forEach(index => {
-        playerXRemaining += finalBoard[index];
-        finalBoard[index] = 0;
-    });
-    finalBoard[PLAYER_X_SCORE_INDEX] += playerXRemaining;
-
-    // Player O gets remaining stones in their boxes
     let playerORemaining = 0;
-    PLAYER_O_BOXES.forEach(index => {
-        playerORemaining += finalBoard[index];
-        finalBoard[index] = 0;
-    });
+
+    PLAYER_X_BOXES.forEach(i => { playerXRemaining += finalBoard[i]; finalBoard[i] = 0; });
+    PLAYER_O_BOXES.forEach(i => { playerORemaining += finalBoard[i]; finalBoard[i] = 0; });
+
+    finalBoard[PLAYER_X_SCORE_INDEX] += playerXRemaining;
     finalBoard[PLAYER_O_SCORE_INDEX] += playerORemaining;
 
-    const scoreX = calculateScore(finalBoard, quanStones, PLAYER_X);
-    const scoreO = calculateScore(finalBoard, quanStones, PLAYER_O);
+    return {
+        board: finalBoard,
+        quanStones: [...quanStones],
+        scores: {
+            X: finalBoard[PLAYER_X_SCORE_INDEX],
+            O: finalBoard[PLAYER_O_SCORE_INDEX]
+        }
+    };
+}
 
-    if (scoreX > scoreO) return PLAYER_X;
-    if (scoreO > scoreX) return PLAYER_O;
+/**
+ * Determine winner from scores
+ */
+export function getWinner(scores) {
+    if (scores.X > scores.O) return PLAYER_X;
+    if (scores.O > scores.X) return PLAYER_O;
     return 'draw';
 }
