@@ -15,10 +15,10 @@ export default function DirectionChooser({ boxIndex, onChoose, onCancel }) {
             </p>
             <div className="flex justify-center gap-4 flex-wrap">
                 <Button variant="primary" onClick={() => onChoose(-1)}>
-                    ⟲ Ngược (Clockwise)
+                    ⬅️ Trái
                 </Button>
                 <Button variant="primary" onClick={() => onChoose(1)}>
-                    ⟳ Xuôi (Counter-Clockwise)
+                    ➡️ Phải
                 </Button>
             </div>
         </div>
